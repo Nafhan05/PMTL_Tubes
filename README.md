@@ -160,10 +160,12 @@ pip install -r requirements.txt
 Proyek ini menggunakan **TensorFlow 2.10** yang memerlukan CUDA runtime dari pip. Library CUDA sudah otomatis terinstall dari `requirements.txt` sebagai dependensi TensorFlow.
 
 **Cara kerja GPU pada proyek ini:**
+
 1. `run_gpu.bat` — menambahkan path DLL NVIDIA (CUDA, cuDNN, cuBLAS) ke `PATH` sebelum menjalankan script
 2. `src/gpu_setup.py` — otomatis mencari dan memuat semua DLL NVIDIA dari `.venv/Lib/site-packages/nvidia/`
 
 **Verifikasi GPU terdeteksi:**
+
 ```bash
 .\run_gpu.bat python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
 ```
@@ -171,6 +173,7 @@ Proyek ini menggunakan **TensorFlow 2.10** yang memerlukan CUDA runtime dari pip
 Jika output menampilkan `[PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]`, berarti GPU sudah siap.
 
 > ⚠️ **Troubleshooting:**
+>
 > - Pastikan **NVIDIA driver** terbaru sudah terinstall (download dari [nvidia.com/drivers](https://www.nvidia.com/download/index.aspx))
 > - Warning `ptxas.exe not found` saat training adalah **normal** — TensorFlow tetap berjalan menggunakan driver GPU
 > - Jika GPU tidak terdeteksi, coba install ulang: `pip install tensorflow==2.10.0 --force-reinstall`
@@ -235,6 +238,35 @@ Buka **http://localhost:8501** di browser.
 
 ---
 
+## 🔮 Improvement & Roadmap
+
+### Prioritas Tinggi
+
+| # | Improvement | Tujuan | Detail |
+|---|-------------|--------|--------|
+| 1 | **Data Augmentation (Doppler + Multipath)** | Mengurangi false positive | Tambahkan efek Doppler shift dan multipath fading ke data training agar model belajar membedakan distorsi alam vs jamming |
+| 2 | **Confidence Threshold** | Mengurangi prediksi ragu-ragu | Implementasi threshold adaptif — jika confidence < 80%, output "Uncertain" daripada salah klasifikasi |
+| 3 | **Deteksi Barrage di SJR Tinggi** | Meningkatkan sensitivitas | Tambah fitur spectral entropy atau statistik higher-order untuk mendeteksi barrage lemah yang mirip noise natural |
+
+### Arsitektur Model
+
+| # | Improvement | Tujuan |
+|---|-------------|--------|
+| 4 | **Hybrid CNN-LSTM** | Gabungkan kekuatan CNN (pattern lokal) + LSTM (temporal) dalam satu model |
+| 5 | **Transformer-based** | Eksperimen dengan arsitektur attention-based untuk time-series I/Q |
+| 6 | **2D-CNN + Spectrogram** | Konversi sinyal ke gambar STFT dan klasifikasi sebagai image recognition |
+
+### Real-World & Deployment
+
+| # | Improvement | Tujuan |
+|---|-------------|--------|
+| 7 | **Real-time SDR Pipeline** | Integrasi dengan HackRF/RTL-SDR untuk deteksi jamming fisik secara langsung |
+| 8 | **Model Quantization** | Kompresi model (INT8/FP16) untuk deployment di edge device (Raspberry Pi) |
+| 9 | **Multi-SNR Training** | Latih model yang robust di berbagai level SNR untuk performa konsisten |
+| 10 | **Adversarial Jamming** | Latih model melawan teknik jamming yang lebih canggih (smart jamming, reactive jamming) |
+
+---
+
 ## 📚 Referensi
 
 1. T. J. O'Shea, T. Roy, T. C. Clancy, "Over-the-Air Deep Learning Based Radio Signal Classification," *IEEE JSTSP*, 2018.
@@ -246,10 +278,11 @@ Buka **http://localhost:8501** di browser.
 
 ## 👥 Kontributor
 
-| Nama                     | NIM       | Peran       |
-| ------------------------ | --------- | ----------- |
-| *(Isi nama anggota 1)* | *(NIM)* | *(Peran)* |
-| *(Isi nama anggota 2)* | *(NIM)* | *(Peran)* |
+| Nama                       | NIM       | Peran       |
+| -------------------------- | --------- | ----------- |
+| Nafhan Hadiyan Shafwatudin | 18123029  | Developer   |
+| *(Isi nama anggota 2)*   | *(NIM)* | *(Peran)* |
+|                            |           |             |
 
 ---
 

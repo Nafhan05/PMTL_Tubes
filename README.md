@@ -136,7 +136,7 @@ PMTL_Tubes/
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/<username>/PMTL_Tubes.git
+git clone https://github.com/Nafhan05/PMTL_Tubes.git
 cd PMTL_Tubes
 
 # 2. Buat virtual environment

@@ -1,0 +1,37 @@
+# Dataset (too large for git, ~6.4 GB)
+data/GOLD_XYZ_OSC.0001_1024.hdf5
+
+# Model weights
+models/*.keras
+models/*.h5
+
+# Results (generated files)
+results/*.png
+results/*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment
+.env
+.venv/
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System
+.gemini/
+Thumbs.db
+.DS_Store

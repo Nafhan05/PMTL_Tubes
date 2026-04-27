@@ -150,6 +150,47 @@ def print_classification_report(y_true: np.ndarray, y_pred: np.ndarray, class_na
     print(classification_report(y_true, y_pred, target_names=class_names, zero_division=0))
 
 
+def plot_classification_matrix(
+    metrics: dict,
+    model_name: str,
+    class_names: list[str] | None = None,
+    save_path: str | None = None,
+):
+    """
+    Plot presisi, recall, dan f1-score per kelas sebagai heatmap.
+    """
+    if class_names is None:
+        class_names = CLASS_NAMES
+        
+    metrics_names = ["Precision", "Recall", "F1-Score"]
+    
+    # Buat matriks 3x3 (Baris: Kelas, Kolom: Metrik)
+    matrix = np.zeros((3, 3))
+    matrix[:, 0] = metrics["precision_per_class"]
+    matrix[:, 1] = metrics["recall_per_class"]
+    matrix[:, 2] = metrics["f1_per_class"]
+    
+    plt.figure(figsize=(7, 5))
+    sns.heatmap(
+        matrix,
+        annot=True,
+        fmt=".4f",
+        cmap="YlGnBu",
+        xticklabels=metrics_names,
+        yticklabels=class_names,
+        vmin=0.90, vmax=1.00
+    )
+    plt.title(f"{model_name} — Classification Report Matrix")
+    plt.xlabel("Metrics")
+    plt.ylabel("Classes")
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        plt.close() # Hindari plotting popup yang mengganggu CLI
+    else:
+        plt.show()
+
+
 # --------------------------------------------------------------------------- #
 #                       BENCHMARK INFERENCE LATENCY                            #
 # --------------------------------------------------------------------------- #

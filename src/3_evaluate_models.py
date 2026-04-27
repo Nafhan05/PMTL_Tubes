@@ -37,6 +37,7 @@ from src.utils import (
     compute_metrics,
     plot_confusion_matrix,
     print_classification_report,
+    plot_classification_matrix,
     measure_latency,
     CLASS_NAMES,
     RESULTS_DIR,
@@ -119,6 +120,15 @@ def evaluate_model(
         save_path=cm_path,
     )
     print(f"   Confusion matrix disimpan: {cm_path}")
+
+    # --- Classification Report Matrix (Precision, Recall, F1) ---
+    cr_path = os.path.join(RESULTS_DIR, f"classification_report_{model_name.lower().replace('-', '_')}.png")
+    plot_classification_matrix(
+        metrics=metrics,
+        model_name=model_name,
+        save_path=cr_path,
+    )
+    print(f"   Classification report matrix disimpan: {cr_path}")
 
     # --- Latency ---
     sample_input = np.random.randn(1, seq_len, 2).astype(np.float32)

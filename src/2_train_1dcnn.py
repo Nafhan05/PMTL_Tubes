@@ -32,13 +32,13 @@ from src.utils import plot_training_history, RESULTS_DIR
 # --------------------------------------------------------------------------- #
 MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
 MODEL_NAME = "best_1dcnn"
-INPUT_SHAPE = (1024, 2)
+DEFAULT_SEQ_LEN = 256  # Downsampled dari 1024 untuk mengurangi overfitting
 
 
 # --------------------------------------------------------------------------- #
 #                           ARSITEKTUR MODEL                                   #
 # --------------------------------------------------------------------------- #
-def build_1dcnn(input_shape: tuple = INPUT_SHAPE, num_classes: int = NUM_CLASSES) -> keras.Model:
+def build_1dcnn(seq_len: int = DEFAULT_SEQ_LEN, num_classes: int = NUM_CLASSES) -> keras.Model:
     """
     Bangun model 1D-CNN untuk klasifikasi sinyal I/Q.
 
@@ -59,7 +59,7 @@ def build_1dcnn(input_shape: tuple = INPUT_SHAPE, num_classes: int = NUM_CLASSES
         - Default lr diturunkan ke 3e-4 (di parse_args)
     """
     l2 = regularizers.l2(1e-4)
-    inputs = keras.Input(shape=input_shape, name="iq_input")
+    inputs = keras.Input(shape=(seq_len, 2), name="iq_input")
 
     # Block 1
     x = layers.Conv1D(64, kernel_size=7, padding="same", kernel_regularizer=l2)(inputs)
@@ -100,6 +100,34 @@ def build_1dcnn(input_shape: tuple = INPUT_SHAPE, num_classes: int = NUM_CLASSES
 
 
 # --------------------------------------------------------------------------- #
+#                   WRAPPER GENERATOR DENGAN DOWNSAMPLING                      #
+# --------------------------------------------------------------------------- #
+class DownsampledGenerator(tf.keras.utils.Sequence):
+    """
+    Wrapper yang mengambil output dari JammingDataGenerator
+    dan melakukan temporal downsampling (mengurangi panjang sequence).
+    """
+
+    def __init__(self, base_generator: JammingDataGenerator, target_len: int = 256):
+        self.base = base_generator
+        self.target_len = target_len
+
+    def __len__(self):
+        return len(self.base)
+
+    def __getitem__(self, idx):
+        X, y = self.base[idx]
+        orig_len = X.shape[1]
+        if self.target_len < orig_len:
+            indices = np.linspace(0, orig_len - 1, self.target_len, dtype=int)
+            X = X[:, indices, :]
+        return X, y
+
+    def on_epoch_end(self):
+        self.base.on_epoch_end()
+
+
+# --------------------------------------------------------------------------- #
 #                           TRAINING PIPELINE                                  #
 # --------------------------------------------------------------------------- #
 def train(args):
@@ -114,14 +142,22 @@ def train(args):
         max_samples=args.max_samples,
     )
 
-    # --- Data Generators ---
-    train_gen = JammingDataGenerator(indices=train_idx, batch_size=args.batch_size, shuffle=True)
-    val_gen = JammingDataGenerator(indices=val_idx, batch_size=args.batch_size, shuffle=False, seed=123)
+    # --- Data Generators (dengan downsampling) ---
+    base_train_gen = JammingDataGenerator(indices=train_idx, batch_size=args.batch_size, shuffle=True)
+    base_val_gen = JammingDataGenerator(indices=val_idx, batch_size=args.batch_size, shuffle=False, seed=123)
 
-    print(f"\nTrain batches: {len(train_gen)}, Val batches: {len(val_gen)}")
+    if args.seq_len < 1024:
+        print(f"\n[INFO] Downsampling sequence: 1024 -> {args.seq_len}")
+        train_gen = DownsampledGenerator(base_train_gen, target_len=args.seq_len)
+        val_gen = DownsampledGenerator(base_val_gen, target_len=args.seq_len)
+    else:
+        train_gen = base_train_gen
+        val_gen = base_val_gen
+
+    print(f"Train batches: {len(train_gen)}, Val batches: {len(val_gen)}")
 
     # --- Build Model ---
-    model = build_1dcnn()
+    model = build_1dcnn(seq_len=args.seq_len)
     model.summary()
 
     model.compile(
@@ -190,6 +226,7 @@ def parse_args():
     parser.add_argument("--epochs", type=int, default=30, help="Jumlah epoch (default: 30)")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size (default: 64)")
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate (default: 0.0003)")
+    parser.add_argument("--seq-len", type=int, default=256, help="Panjang sequence input (default: 256, downsample dari 1024)")
     parser.add_argument("--max-samples", type=int, default=None, help="Batasi jumlah sample (untuk debug)")
     parser.add_argument("--dry-run", action="store_true", help="Quick test mode (1 epoch, 1000 samples)")
     return parser.parse_args()

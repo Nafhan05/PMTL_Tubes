@@ -51,7 +51,7 @@ MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
 MODEL_CONFIGS = {
     "1D-CNN": {
         "path": os.path.join(MODELS_DIR, "best_1dcnn.keras"),
-        "seq_len": 1024,
+        "seq_len": 256,  # v2: downsampled dari 1024
     },
     "LSTM": {
         "path": os.path.join(MODELS_DIR, "best_lstm.keras"),

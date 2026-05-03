@@ -22,7 +22,7 @@ import numpy as np
 import src.gpu_setup  # Harus sebelum import tensorflow agar GPU DLL ditemukan
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers
+from tensorflow.keras import layers, regularizers
 
 from src.data_loader import JammingDataGenerator, create_train_val_test_split, HDF5_FILE, NUM_CLASSES
 from src.utils import plot_training_history, RESULTS_DIR
@@ -42,41 +42,48 @@ def build_1dcnn(input_shape: tuple = INPUT_SHAPE, num_classes: int = NUM_CLASSES
     """
     Bangun model 1D-CNN untuk klasifikasi sinyal I/Q.
 
-    Architecture:
+    Architecture (v2 — anti-overfitting):
         Input (1024, 2)
-        → [Conv1D(64) → BN → ReLU → MaxPool → SpatialDropout] × 1
-        → [Conv1D(128) → BN → ReLU → MaxPool → SpatialDropout] × 1
-        → [Conv1D(256) → BN → ReLU → MaxPool → SpatialDropout] × 1
-        → [Conv1D(256) → BN → ReLU → MaxPool → SpatialDropout] × 1
+        → [Conv1D(64, L2) → BN → ReLU → MaxPool → SpatialDropout] × 1
+        → [Conv1D(128, L2) → BN → ReLU → MaxPool → SpatialDropout] × 1
+        → [Conv1D(128, L2) → BN → ReLU → MaxPool → SpatialDropout] × 1
+        → [Conv1D(128, L2) → BN → ReLU → MaxPool → SpatialDropout] × 1
         → GlobalAveragePooling1D
-        → Dense(128) → Dropout(0.5)
+        → Dense(64, L2) → Dropout(0.5)
         → Dense(3, softmax)
+
+    Perubahan dari v1:
+        - L2 regularization (1e-4) pada semua Conv1D dan Dense
+        - Filter dikurangi: 64→128→128→128 (dari 64→128→256→256)
+        - Dense head dikecilkan: 64 (dari 128)
+        - Default lr diturunkan ke 3e-4 (di parse_args)
     """
+    l2 = regularizers.l2(1e-4)
     inputs = keras.Input(shape=input_shape, name="iq_input")
 
     # Block 1
-    x = layers.Conv1D(64, kernel_size=7, padding="same")(inputs)
+    x = layers.Conv1D(64, kernel_size=7, padding="same", kernel_regularizer=l2)(inputs)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
     x = layers.MaxPooling1D(pool_size=2)(x)
     x = layers.SpatialDropout1D(0.1)(x)
 
     # Block 2
-    x = layers.Conv1D(128, kernel_size=5, padding="same")(x)
+    x = layers.Conv1D(128, kernel_size=5, padding="same", kernel_regularizer=l2)(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
     x = layers.MaxPooling1D(pool_size=2)(x)
     x = layers.SpatialDropout1D(0.15)(x)
 
     # Block 3
-    x = layers.Conv1D(256, kernel_size=3, padding="same")(x)
+    x = layers.Conv1D(128, kernel_size=3, padding="same", kernel_regularizer=l2)(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
     x = layers.MaxPooling1D(pool_size=2)(x)
     x = layers.SpatialDropout1D(0.2)(x)
 
     # Block 4
-    x = layers.Conv1D(256, kernel_size=3, padding="same")(x)
+    x = layers.Conv1D(128, kernel_size=3, padding="same", kernel_regularizer=l2)(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
     x = layers.MaxPooling1D(pool_size=2)(x)
@@ -84,11 +91,11 @@ def build_1dcnn(input_shape: tuple = INPUT_SHAPE, num_classes: int = NUM_CLASSES
 
     # Head
     x = layers.GlobalAveragePooling1D()(x)
-    x = layers.Dense(128, activation="relu")(x)
+    x = layers.Dense(64, activation="relu", kernel_regularizer=l2)(x)
     x = layers.Dropout(0.5)(x)
     outputs = layers.Dense(num_classes, activation="softmax", name="output")(x)
 
-    model = keras.Model(inputs=inputs, outputs=outputs, name="1D_CNN_Jammer_Detector")
+    model = keras.Model(inputs=inputs, outputs=outputs, name="1D_CNN_Jammer_Detector_v2")
     return model
 
 
@@ -182,7 +189,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Train 1D-CNN for Wireless Jamming Detection")
     parser.add_argument("--epochs", type=int, default=30, help="Jumlah epoch (default: 30)")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size (default: 64)")
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate (default: 0.001)")
+    parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate (default: 0.0003)")
     parser.add_argument("--max-samples", type=int, default=None, help="Batasi jumlah sample (untuk debug)")
     parser.add_argument("--dry-run", action="store_true", help="Quick test mode (1 epoch, 1000 samples)")
     return parser.parse_args()

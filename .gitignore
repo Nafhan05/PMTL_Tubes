@@ -35,3 +35,6 @@ venv/
 .gemini/
 Thumbs.db
 .DS_Store
+
+.agents/
+

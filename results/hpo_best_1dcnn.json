@@ -1,0 +1,16 @@
+{
+  "num_blocks": 4,
+  "kernel_size": 7,
+  "l2_weight": 1e-05,
+  "dense_units": 128,
+  "dense_dropout": 0.3,
+  "learning_rate": 0.0018274261175095295,
+  "filters_block_0": 192,
+  "spatial_dropout_0": 0.05,
+  "filters_block_1": 256,
+  "spatial_dropout_1": 0.05,
+  "filters_block_2": 256,
+  "spatial_dropout_2": 0.05,
+  "filters_block_3": 32,
+  "spatial_dropout_3": 0.05
+}

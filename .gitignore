@@ -8,6 +8,11 @@ models/*.h5
 # Results (generated files)
 results/*.png
 results/*.json
+# But track HPO best hyperparameters
+!results/hpo_best_*.json
+
+# HPO trial logs (large)
+hpo_results/
 
 # Python
 __pycache__/

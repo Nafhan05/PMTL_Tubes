@@ -1,0 +1,21 @@
+{
+  "num_blocks": 5,
+  "kernel_size": 5,
+  "use_l2": false,
+  "dense_units": 256,
+  "dense_dropout": 0.5,
+  "use_global_avg": true,
+  "learning_rate": 0.00880950969950701,
+  "filters_block_0": 32,
+  "spatial_dropout_0": 0.25,
+  "filters_block_1": 64,
+  "spatial_dropout_1": 0.2,
+  "filters_block_2": 32,
+  "spatial_dropout_2": 0.2,
+  "filters_block_3": 32,
+  "spatial_dropout_3": 0.0,
+  "filters_block_4": 32,
+  "spatial_dropout_4": 0.0,
+  "stft_nperseg": 64,
+  "stft_hop_length": 16
+}

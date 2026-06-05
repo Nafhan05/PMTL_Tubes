@@ -9,3 +9,11 @@ tqdm
 streamlit==1.22.0
 plotly>=5.0
 protobuf==3.19.6
+keras-tuner
+nvidia-cuda-runtime-cu11
+nvidia-cudnn-cu11
+nvidia-cublas-cu11
+nvidia-cufft-cu11
+nvidia-curand-cu11
+nvidia-cusolver-cu11
+nvidia-cusparse-cu11

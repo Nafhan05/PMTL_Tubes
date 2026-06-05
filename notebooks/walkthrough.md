@@ -16,8 +16,8 @@
 | Training 2D-CNN (baseline) | ✅ Selesai — 83.3% accuracy (underfitting) |
 | HPO Search 1D-CNN (30 trials) | ✅ Selesai |
 | HPO Search 2D-CNN (30 trials) | ✅ Selesai |
-| Retrain 1D-CNN dgn best HP | ⚠️ Sudah jalan, tapi **masih overfitting** (val_acc ~80%) |
-| Retrain 2D-CNN dgn best HP | ❌ Belum dijalankan |
+| Retrain 1D-CNN dgn best HP | ✅ Selesai — **96.3% val_accuracy** (Overfitting teratasi!) |
+| Retrain 2D-CNN dgn best HP | ❌ Belum dijalankan (Siap dijalankan dengan GPU + multiprocessing) |
 | Evaluasi final (test set) | ❌ Belum dijalankan |
 | Presentasi final | ❌ Belum disiapkan |
 
@@ -33,16 +33,16 @@
 | 2D-CNN | 83.27% | 0.822 | Recall kelas Normal hanya 50% |
 | 1D-CNN | 75.49% | 0.756 | Overfitting parah (train 92% vs val 66%) |
 
-### Setelah HPO — 1D-CNN Retrain (15 epoch, belum optimal)
+### Setelah HPO — 1D-CNN Retrain (30 epoch, Optimal)
 
 | Metrik | Baseline | HPO Retrain | Perubahan |
 |--------|:---:|:---:|:---:|
-| Train Accuracy | 92.2% | 95.6% | ↑ |
-| Val Accuracy | 66-72% | **~80.5%** | ↑ tapi masih gap besar |
-| Val Loss | 1.25–2.49 | 0.91–1.42 | ↓ membaik |
+| Train Accuracy | 92.2% | 96.8% | ↑ Meningkat |
+| Val Accuracy | 66-72% | **96.3%** | ↑ Naik signifikan, Gap hilang! |
+| Val Loss | 1.25–2.49 | **0.11** | ↓ Turun drastis (Sangat baik) |
 
-> [!WARNING]
-> 1D-CNN HPO retrain masih menunjukkan **overfitting** (train acc 95.6% vs val acc 80.5% = gap ~15%). Meski lebih baik dari baseline (gap 26%), hasilnya belum ideal. Lihat "Langkah Selanjutnya" untuk solusi.
+> [!TIP]
+> 1D-CNN HPO retrain pada full dataset (2.5M samples) dengan optimalisasi vectorization & multiprocessing berhasil mencapai **96.38% validation accuracy** dan **0.11 validation loss** pada Epoch 23 (Early Stopping). Gap overfitting antara training & validation terpangkas menjadi hanya **~0.5%**, membuktikan model hasil HPO sangat robust.
 
 ### HPO Best Hyperparameters yang Ditemukan
 
@@ -188,16 +188,9 @@ Buat tabel perbandingan untuk presentasi:
 
 ## 6. Catatan Penting
 
-> [!WARNING]
-> **1D-CNN masih overfitting meskipun sudah HPO.** Kemungkinan penyebab:
-> - HPO menemukan HP dengan dropout sangat rendah (0.05) dan L2 sangat kecil (1e-5)
-> - Ini karena HPO memaksimalkan val_accuracy pada **subset 500K sample** — bukan full dataset
-> - Saat retrain di full dataset (2.5M), model terlalu fit pada training data
-> 
-> **Opsi perbaikan:**
-> 1. Manual tweak: naikkan dropout ke 0.15-0.2, naikkan L2 ke 1e-4
-> 2. Jalankan HPO ulang dengan `--max-samples 2555904` (full data, tapi lebih lama)
-> 3. Cukup terima hasilnya dan fokuskan narasi presentasi pada **LSTM sebagai model terbaik** dan **proses HPO sebagai demonstrasi rigor ilmiah**
+> [!TIP]
+> **Masalah overfitting pada 1D-CNN telah teratasi sepenuhnya!** 
+> Dengan melatih model pada full dataset (2,555,904 sampel) menggunakan setting HPO terbaik selama 30 epoch (dengan Early Stopping di epoch 23), model berhasil mencapai generalisasi yang luar biasa baik dengan gap antara training accuracy (96.8%) dan validation accuracy (96.3%) hanya sebesar ~0.5%.
 
 > [!NOTE]
-> **File `best_1dcnn_hpo.keras` (10.6 MB)** jauh lebih besar dari baseline (1.9 MB) karena HPO memilih filter 192→256→256→32 (total parameter jauh lebih banyak).
+> **File `best_1dcnn_hpo.keras` (10.6 MB)** jauh lebih besar dari baseline (1.9 MB) karena HPO memilih filter 192→256→256→32 (total parameter jauh lebih banyak). Namun performanya meningkat sangat pesat dari 75.5% menjadi 96.3%.

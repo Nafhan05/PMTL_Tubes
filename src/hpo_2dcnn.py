@@ -204,7 +204,8 @@ def run_hpo(args):
         ]
 
         history = model.fit(train_gen, validation_data=val_gen,
-                            epochs=args.retrain_epochs, callbacks=cbs, verbose=1)
+                            epochs=args.retrain_epochs, callbacks=cbs, verbose=1,
+                            workers=4, use_multiprocessing=True)
 
         os.makedirs(RESULTS_DIR, exist_ok=True)
         with open(os.path.join(RESULTS_DIR, "2dcnn_hpo_history.json"), "w") as f:
@@ -230,7 +231,8 @@ def run_hpo(args):
 
     print(f"\n>> Memulai search ({args.max_trials} trials)...\n")
     tuner.search(train_gen, validation_data=val_gen, epochs=args.epochs_per_trial,
-                 callbacks=trial_cbs, verbose=1)
+                 callbacks=trial_cbs, verbose=1,
+                 workers=4, use_multiprocessing=True)
 
     tuner.results_summary(num_trials=5)
     best_config = tuner.get_best_hyperparameters(1)[0].values

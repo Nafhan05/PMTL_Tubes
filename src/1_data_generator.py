@@ -143,6 +143,7 @@ class JammingDataGenerator(tf.keras.utils.Sequence):
         self.normal_ratio = normal_ratio
         self.shuffle = shuffle
         self.seed = seed
+        self.file = None
 
         # Buka HDF5 untuk mendapatkan jumlah total frame
         with h5py.File(self.hdf5_path, "r") as f:
@@ -155,6 +156,13 @@ class JammingDataGenerator(tf.keras.utils.Sequence):
             self.indices = np.arange(self.total_frames)
 
         self.on_epoch_end()
+
+    def __del__(self):
+        if hasattr(self, "file") and self.file is not None:
+            try:
+                self.file.close()
+            except Exception:
+                pass
 
     def __len__(self) -> int:
         """Jumlah batch per epoch."""
@@ -170,11 +178,13 @@ class JammingDataGenerator(tf.keras.utils.Sequence):
         batch_indices = self.indices[idx * self.batch_size : (idx + 1) * self.batch_size]
         actual_batch_size = len(batch_indices)
 
-        # Baca sinyal dari HDF5
-        with h5py.File(self.hdf5_path, "r") as f:
-            # Sort indices untuk HDF5 fancy indexing (harus terurut)
-            sorted_idx = np.sort(batch_indices)
-            X_batch = f["X"][sorted_idx]  # (B, 1024, 2)
+        # Baca sinyal dari HDF5 secara lazy (mempertahankan handle tetap terbuka)
+        if self.file is None:
+            self.file = h5py.File(self.hdf5_path, "r")
+
+        # Sort indices untuk HDF5 fancy indexing (harus terurut)
+        sorted_idx = np.sort(batch_indices)
+        X_batch = self.file["X"][sorted_idx]  # (B, 1024, 2)
 
         # Gunakan RNG deterministik untuk val/test, atau random untuk training
         if self.seed is not None:
@@ -192,19 +202,45 @@ class JammingDataGenerator(tf.keras.utils.Sequence):
         # Acak urutan assignment
         assignment = rng.permutation(actual_batch_size)
 
-        # Inject CW Jamming
-        for i in assignment[:cw_count]:
-            sjr = rng.uniform(*self.sjr_range)
-            X_batch[i] = inject_cw_jamming(X_batch[i], sjr)
-            y_batch[i] = LABEL_CW
+        # --- Vectorized CW Jamming ---
+        cw_indices = assignment[:cw_count]
+        if len(cw_indices) > 0:
+            signals = X_batch[cw_indices]  # (K, 1024, 2)
+            n_samples_per = signals.shape[1]
+            sjr_dbs = rng.uniform(*self.sjr_range, size=len(cw_indices))
+            signal_powers = np.mean(signals ** 2, axis=(1, 2))  # (K,)
+            sjr_linear = 10 ** (sjr_dbs / 10)
+            jam_powers = signal_powers / sjr_linear  # (K,)
 
-        # Inject Barrage Jamming
-        for i in assignment[cw_count : cw_count + barrage_count]:
-            sjr = rng.uniform(*self.sjr_range)
-            X_batch[i] = inject_barrage_jamming(X_batch[i], sjr)
-            y_batch[i] = LABEL_BARRAGE
+            freqs = rng.uniform(0.01, 0.5, size=len(cw_indices))  # (K,)
+            phases = rng.uniform(0, 2 * np.pi, size=len(cw_indices))  # (K,)
+            t = np.arange(n_samples_per)  # (1024,)
+            angles = 2 * np.pi * freqs[:, None] * t[None, :] + phases[:, None]  # (K, 1024)
+            cw_i = np.cos(angles)  # (K, 1024)
+            cw_q = np.sin(angles)  # (K, 1024)
+            cw = np.stack([cw_i, cw_q], axis=-1)  # (K, 1024, 2)
+            cw_powers = np.mean(cw ** 2, axis=(1, 2))  # (K,)
+            scales = np.sqrt(jam_powers / (cw_powers + 1e-10))  # (K,)
+            X_batch[cw_indices] = signals + cw * scales[:, None, None]
+            y_batch[cw_indices] = LABEL_CW
+
+        # --- Vectorized Barrage Jamming ---
+        barrage_indices = assignment[cw_count : cw_count + barrage_count]
+        if len(barrage_indices) > 0:
+            signals = X_batch[barrage_indices]  # (K, 1024, 2)
+            sjr_dbs = rng.uniform(*self.sjr_range, size=len(barrage_indices))
+            signal_powers = np.mean(signals ** 2, axis=(1, 2))  # (K,)
+            sjr_linear = 10 ** (sjr_dbs / 10)
+            jam_powers = signal_powers / sjr_linear  # (K,)
+
+            noise = rng.randn(*signals.shape)  # (K, 1024, 2)
+            noise_powers = np.mean(noise ** 2, axis=(1, 2))  # (K,)
+            scales = np.sqrt(jam_powers / (noise_powers + 1e-10))  # (K,)
+            X_batch[barrage_indices] = signals + noise * scales[:, None, None]
+            y_batch[barrage_indices] = LABEL_BARRAGE
 
         # Sisanya tetap Normal (label 0, sudah default)
+
 
         return X_batch.astype(np.float32), y_batch
 

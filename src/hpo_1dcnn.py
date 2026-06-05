@@ -244,6 +244,8 @@ def run_hpo(args):
             epochs=args.retrain_epochs,
             callbacks=retrain_callbacks,
             verbose=1,
+            workers=4,
+            use_multiprocessing=True,
         )
 
         # Save history

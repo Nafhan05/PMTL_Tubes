@@ -5,13 +5,10 @@ data/GOLD_XYZ_OSC.0001_1024.hdf5
 models/*.keras
 models/*.h5
 
-# Results (generated files)
-results/*.png
-results/*.json
-# But track HPO best hyperparameters
-!results/hpo_best_*.json
+# Results — track all results (small files, needed for PPT/documentation)
+# Only ignore old/duplicate files if needed
 
-# HPO trial logs (large)
+# HPO trial logs (large, ~100MB+)
 hpo_results/
 
 # Python

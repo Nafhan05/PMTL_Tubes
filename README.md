@@ -1,6 +1,6 @@
 # 📡 Deteksi Wireless Jamming Berbasis Deep Learning
 
-Sistem deteksi dan klasifikasi serangan *Wireless Jamming* pada *Physical Layer* (L1) menggunakan model **1D-CNN** dan **LSTM** dengan data sinyal I/Q dari DeepSig.
+Sistem deteksi dan klasifikasi serangan *Wireless Jamming* pada *Physical Layer* (L1) menggunakan model **1D-CNN**, **LSTM**, dan **2D-CNN** dengan data sinyal I/Q dari DeepSig, dilengkapi **Bayesian Hyperparameter Optimization**.
 
 ---
 
@@ -12,44 +12,72 @@ Serangan *Wireless Jamming* merupakan ancaman serius pada sistem komunikasi nirk
 
 ### Tujuan
 
-Mengembangkan sistem *Artificial Intelligence* yang mampu mendeteksi dan mengklasifikasikan serangan *Wireless Jamming* secara langsung pada sinyal I/Q mentah menggunakan *Deep Learning*.
+Mengembangkan sistem *Artificial Intelligence* yang mampu mendeteksi dan mengklasifikasikan serangan *Wireless Jamming* secara langsung pada sinyal I/Q mentah menggunakan *Deep Learning*, serta membandingkan performa pendekatan domain waktu (1D-CNN, LSTM) vs domain frekuensi (2D-CNN).
 
 ### Kelas Target
 
 | Label | Kelas               | Deskripsi                                                             |
 | ----- | ------------------- | --------------------------------------------------------------------- |
 | 0     | `Normal`          | Sinyal komunikasi bersih dengan noise alam (AWGN)                     |
-| 1     | `CW_Jamming`      | Terinfeksi serangan*Continuous Wave* (Gelombang Sinusoidal Konstan) |
-| 2     | `Barrage_Jamming` | Terinfeksi serangan*Gaussian Noise* berskala lebar                  |
+| 1     | `CW_Jamming`      | Terinfeksi serangan *Continuous Wave* (Gelombang Sinusoidal Konstan) |
+| 2     | `Barrage_Jamming` | Terinfeksi serangan *Gaussian Noise* berskala lebar                  |
 
 ---
 
 ## 📊 Hasil Evaluasi
 
-### Performa Model pada Test Set (383.387 sampel)
+### Ringkasan Performa Akhir — Semua Model
 
-| Metrik                      | 1D-CNN          | LSTM            |
-| --------------------------- | --------------- | --------------- |
-| **Accuracy**          | 97.0%           | **98.2%** |
-| **Precision (macro)** | 97.2%           | **98.2%** |
-| **Recall (macro)**    | 97.1%           | **98.2%** |
-| **F1-Score (macro)**  | 97.0%           | **98.2%** |
-| **Avg Latency**       | **36 ms** | 47 ms           |
+| Rank | Model              | Accuracy | Precision | Recall | F1-Score | vs Baseline      | Status           |
+|:----:|--------------------|---------:|----------:|-------:|---------:|------------------|------------------|
+| #1   | **LSTM**           | 97.74%   | 97.77%    | 97.76% | 0.977    | - (tanpa HPO)    | ✅ Terbaik       |
+| #2   | **1D-CNN (HPO)**   | 96.31%   | 96.51%    | 96.35% | 0.963    | **+20.8%**       | ✅ Sukses HPO    |
+| #3   | 2D-CNN (Baseline)  | 83.27%   | 88.74%    | 83.01% | 0.822    | - (sebelum HPO)  | ⚠️ Saturasi      |
+| #4   | 2D-CNN (HPO)       | 83.36%   | 88.83%    | 83.10% | 0.823    | +0.1% (tetap)    | ❌ Bottleneck input |
+| #5   | 1D-CNN (Baseline)  | 75.49%   | 85.59%    | 75.90% | 0.756    | - (sebelum HPO)  | ❌ Overfitting   |
 
-### Performa Per-Kelas
+### Computational Cost
 
-| Kelas           | 1D-CNN (F1)     | LSTM (F1)       |
-| --------------- | --------------- | --------------- |
-| Normal          | 95.9%           | **97.5%** |
-| CW Jamming      | **98.9%** | 99.3%           |
-| Barrage Jamming | 96.3%           | **97.7%** |
+| Model             | Parameters | Trainable | Epochs | Inference Latency | Accuracy |
+|-------------------|-----------:|----------:|-------:|-------------------:|---------:|
+| LSTM              | 120,835    | 120,835   | 21     | 61.5 ms            | 97.74%   |
+| 1D-CNN (Baseline) | 150,851    | 149,955   | 6*     | 36.9 ms            | 75.49%   |
+| 1D-CNN (HPO)      | 871,139    | 869,667   | 30     | 61.8 ms            | 96.31%   |
+| 2D-CNN (Baseline) | 102,019    | 101,571   | 30     | 34.3 ms            | 83.27%   |
+| 2D-CNN (HPO)      | 164,579    | 164,195   | 40     | 66.4 ms            | 83.36%   |
 
-### Temuan Utama dari Demo Interaktif
+> *1D-CNN Baseline: early stopping pada epoch 6 karena overfitting parah (val_loss meningkat terus).
 
-- ✅ **SJR ≤ 0 dB:** Kedua model mendeteksi jamming dengan sangat baik (>97%)
-- ⚠️ **SJR +10 dB:** Batas deteksi — CW masih kadang terdeteksi, Barrage sering gagal
-- ❌ **Doppler tinggi (200 km/h):** False positive CW Jamming karena pergeseran frekuensi mirip CW
-- 🏆 **LSTM lebih sensitif** terhadap jamming lemah, **1D-CNN lebih cepat dan stabil**
+### Temuan Utama
+
+- 🏆 **LSTM** mencapai akurasi tertinggi (97.7%) dengan parameter paling sedikit (121K) — paling efisien
+- 🚀 **1D-CNN HPO** berhasil meningkatkan akurasi dari 75.5% → 96.3% (+20.8%) — HPO sangat efektif mengatasi overfitting
+- ⚠️ **2D-CNN HPO** hanya naik 0.1% — bottleneck ada di representasi data (STFT spektrogram), bukan arsitektur model
+- ⚡ Semua model memiliki inference latency <70ms — layak untuk real-time detection
+
+---
+
+## 🔧 Hyperparameter Optimization (HPO)
+
+### Metodologi
+
+Menggunakan **Bayesian Optimization** via Keras Tuner karena efisien dalam mencari 14 hyperparameter secara simultan.
+
+**Alur Bayesian Optimization:**
+1. **Inisialisasi Random** — Coba 5 konfigurasi acak sebagai titik awal
+2. **Surrogate Model** — Bangun model prediksi (Gaussian Process) dari hasil trial sebelumnya
+3. **Acquisition Function** — Pilih konfigurasi paling menjanjikan berdasarkan surrogate
+4. **Evaluasi Model** — Training dengan HP terpilih, ukur `val_accuracy`
+5. **Update & Ulangi** — Perbarui surrogate, ulangi hingga 30 trial
+
+### Perbandingan Metode HPO
+
+| Aspek         | Grid Search              | Random Search          | Bayesian Optimization ✓   |
+|---------------|--------------------------|------------------------|----------------------------|
+| Cara kerja    | Coba SEMUA kombinasi     | Coba kombinasi acak    | Belajar dari trial sebelum |
+| Efisiensi     | Sangat lambat            | Sedang (untung2an)     | Cerdas & efisien (30 trial)|
+| Kualitas      | Pasti optimal (tapi mahal)| Bisa miss optimal     | Mendekati optimal dg cepat |
+| Cocok untuk   | Search space kecil (<4)  | Eksplorasi awal        | Search space besar (14 HP) |
 
 ---
 
@@ -70,7 +98,7 @@ Sinyal jamming di-injeksikan secara **sintetis** saat training menggunakan *Data
 
 ## 🧠 Arsitektur Model
 
-### 1D-CNN
+### 1D-CNN (Baseline → HPO)
 
 ```
 Input (1024, 2)
@@ -93,6 +121,18 @@ Input (256, 2) — downsampled dari 1024
 → Dense(3, Softmax)
 ```
 
+### 2D-CNN
+
+```
+Input: STFT Spectrogram dari sinyal I/Q
+→ Conv2D(32, 3x3) + BN + ReLU + MaxPool
+→ Conv2D(64, 3x3) + BN + ReLU + MaxPool
+→ Conv2D(128, 3x3) + BN + ReLU + MaxPool
+→ Flatten
+→ Dense(64, ReLU) + Dropout(0.5)
+→ Dense(3, Softmax)
+```
+
 ---
 
 ## 🛠️ Struktur Direktori
@@ -102,20 +142,26 @@ PMTL_Tubes/
 ├── data/
 │   └── GOLD_XYZ_OSC.0001_1024.hdf5    # Dataset (download manual, ~6.4 GB)
 ├── notebooks/
-│   └── EDA_and_Visualization.ipynb     # Eksplorasi data
+│   ├── EDA_and_Visualization.ipynb     # Eksplorasi data
+│   ├── visualize_hpo_curves.py         # Generate training curves HPO
+│   ├── visualize_ppt_hpo.py            # Generate tabel & chart untuk PPT
+│   └── visualize_ppt_updated.py        # Generate summary & computational cost
 ├── src/
 │   ├── 1_data_generator.py             # Pipeline injeksi jamming sintetis
 │   ├── 2_train_1dcnn.py                # Training model 1D-CNN
 │   ├── 2_train_lstm.py                 # Training model LSTM
+│   ├── 2_train_2dcnn.py                # Training model 2D-CNN
 │   ├── 3_evaluate_models.py            # Evaluasi & benchmarking
-│   ├── 4_demo_app.py                   # 🆕 Demo interaktif (Streamlit)
-│   ├── demo_components.py              # 🆕 Komponen efek dunia nyata + animasi
+│   ├── 4_demo_app.py                   # Demo interaktif (Streamlit)
+│   ├── hpo_1dcnn.py                    # HPO Bayesian Optimization — 1D-CNN
+│   ├── hpo_2dcnn.py                    # HPO Bayesian Optimization — 2D-CNN
+│   ├── demo_components.py              # Komponen efek dunia nyata + animasi
 │   ├── data_loader.py                  # Bridge module import
 │   ├── gpu_setup.py                    # Setup GPU NVIDIA DLL
 │   └── utils.py                        # Fungsi pembantu (visualisasi, metrik)
 ├── models/                             # Bobot model (.keras) — git-ignored
-├── results/                            # Confusion matrix, evaluation JSON
-├── webui_test/                         # Screenshot hasil pengujian demo
+├── results/                            # Hasil evaluasi baseline
+│   └── hpo/                            # Hasil evaluasi HPO + visualisasi PPT
 ├── requirements.txt
 ├── run_gpu.bat                         # Helper script untuk GPU support
 ├── .gitignore
@@ -170,14 +216,11 @@ Proyek ini menggunakan **TensorFlow 2.10** yang memerlukan CUDA runtime dari pip
 .\run_gpu.bat python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
 ```
 
-Jika output menampilkan `[PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]`, berarti GPU sudah siap.
-
 > ⚠️ **Troubleshooting:**
 >
 > - Pastikan **NVIDIA driver** terbaru sudah terinstall (download dari [nvidia.com/drivers](https://www.nvidia.com/download/index.aspx))
 > - Warning `ptxas.exe not found` saat training adalah **normal** — TensorFlow tetap berjalan menggunakan driver GPU
-> - Jika GPU tidak terdeteksi, coba install ulang: `pip install tensorflow==2.10.0 --force-reinstall`
-> - Diuji pada **GTX 1650** dan **RTX 3050**
+> - Diuji pada **GTX 1650 Mobile** dan **GCP VM** (untuk retrain HPO)
 
 ---
 
@@ -192,32 +235,56 @@ jupyter notebook notebooks/EDA_and_Visualization.ipynb
 ### 2. Training Model
 
 ```bash
-# Training 1D-CNN (full)
+# Training 1D-CNN
 .\run_gpu.bat python src/2_train_1dcnn.py
 
-# Training 1D-CNN (quick test)
-.\run_gpu.bat python src/2_train_1dcnn.py --dry-run
-
-# Training LSTM (full)
+# Training LSTM
 .\run_gpu.bat python src/2_train_lstm.py
 
-# Custom hyperparameters
-.\run_gpu.bat python src/2_train_1dcnn.py --epochs 50 --lr 0.0005
-.\run_gpu.bat python src/2_train_lstm.py --seq-len 512
-.\run_gpu.bat python src/2_train_1dcnn.py --max-samples 500000
+# Training 2D-CNN
+.\run_gpu.bat python src/2_train_2dcnn.py
+
+# Quick test (subset data)
+.\run_gpu.bat python src/2_train_1dcnn.py --dry-run
 ```
 
-> Model terbaik otomatis tersimpan di `models/best_1dcnn.keras` dan `models/best_lstm.keras`.
+> Model terbaik otomatis tersimpan di `models/best_*.keras`.
 
-### 3. Evaluasi Model
+### 3. Hyperparameter Optimization
+
+```bash
+# HPO 1D-CNN (30 trials Bayesian Optimization)
+.\run_gpu.bat python src/hpo_1dcnn.py --max-trials 30
+
+# HPO 2D-CNN
+.\run_gpu.bat python src/hpo_2dcnn.py --max-trials 30
+
+# Retrain dengan best hyperparameters
+.\run_gpu.bat python src/hpo_1dcnn.py --max-trials 0 --retrain --retrain-epochs 40
+```
+
+### 4. Evaluasi Model
 
 ```bash
 .\run_gpu.bat python src/3_evaluate_models.py
 ```
 
-Hasil disimpan di `results/evaluation_results.json` dan `results/confusion_matrix_*.png`.
+Hasil disimpan di `results/` (baseline) dan `results/hpo/` (setelah HPO).
 
-### 4. Demo Interaktif 🆕
+### 5. Generate Visualisasi PPT
+
+```bash
+# Training curves HPO
+python notebooks/visualize_hpo_curves.py
+
+# Tabel, chart, dan diagram untuk PPT
+python notebooks/visualize_ppt_hpo.py
+
+# Summary table & computational cost
+python notebooks/visualize_ppt_updated.py
+```
+
+### 6. Demo Interaktif
 
 ```bash
 .\run_gpu.bat streamlit run src/4_demo_app.py
@@ -225,45 +292,26 @@ Hasil disimpan di `results/evaluation_results.json` dan `results/confusion_matri
 
 Buka **http://localhost:8501** di browser.
 
-#### Fitur Demo
-
-| Fitur                        | Deskripsi                                              |
-| ---------------------------- | ------------------------------------------------------ |
-| **Model Selector**     | Pilih 1D-CNN atau LSTM                                 |
-| **Jenis Jamming**      | None / CW / Barrage dengan slider SJR                  |
-| **Efek Dunia Nyata**   | Doppler Shift & Multipath Fading                       |
-| **Network Diagram**    | Animasi TX → RX → AI Model dengan gelombang bergerak |
-| **Visualisasi Sinyal** | Time Domain, Konstelasi, Power Spectrum (Plotly)       |
-| **Hasil Deteksi**      | Prediksi + Confidence + Latency real-time              |
-
 ---
 
-## 🔮 Improvement & Roadmap
+## 📈 Visualisasi Hasil
 
-### Prioritas Tinggi
+Semua visualisasi tersimpan di `results/` dan `results/hpo/`:
 
-| # | Improvement | Tujuan | Detail |
-|---|-------------|--------|--------|
-| 1 | **Data Augmentation (Doppler + Multipath)** | Mengurangi false positive | Tambahkan efek Doppler shift dan multipath fading ke data training agar model belajar membedakan distorsi alam vs jamming |
-| 2 | **Confidence Threshold** | Mengurangi prediksi ragu-ragu | Implementasi threshold adaptif — jika confidence < 80%, output "Uncertain" daripada salah klasifikasi |
-| 3 | **Deteksi Barrage di SJR Tinggi** | Meningkatkan sensitivitas | Tambah fitur spectral entropy atau statistik higher-order untuk mendeteksi barrage lemah yang mirip noise natural |
+### Baseline
+- Training curves: `*_training_curves.png`
+- Confusion matrix: `confusion_matrix_*.png`
+- Classification report: `classification_report_*.png`
 
-### Arsitektur Model
-
-| # | Improvement | Tujuan |
-|---|-------------|--------|
-| 4 | **Hybrid CNN-LSTM** | Gabungkan kekuatan CNN (pattern lokal) + LSTM (temporal) dalam satu model |
-| 5 | **Transformer-based** | Eksperimen dengan arsitektur attention-based untuk time-series I/Q |
-| 6 | **2D-CNN + Spectrogram** | Konversi sinyal ke gambar STFT dan klasifikasi sebagai image recognition |
-
-### Real-World & Deployment
-
-| # | Improvement | Tujuan |
-|---|-------------|--------|
-| 7 | **Real-time SDR Pipeline** | Integrasi dengan HackRF/RTL-SDR untuk deteksi jamming fisik secara langsung |
-| 8 | **Model Quantization** | Kompresi model (INT8/FP16) untuk deployment di edge device (Raspberry Pi) |
-| 9 | **Multi-SNR Training** | Latih model yang robust di berbagai level SNR untuk performa konsisten |
-| 10 | **Adversarial Jamming** | Latih model melawan teknik jamming yang lebih canggih (smart jamming, reactive jamming) |
+### HPO & PPT
+- Training curves HPO: `hpo/*_hpo_training_curves.png`
+- Confusion matrix HPO: `hpo/confusion_matrix_*_hpo.png`
+- Perbandingan metode HPO: `hpo/ppt_hpo_method_comparison.png`
+- Search space & best HP: `hpo/ppt_search_space_*.png`
+- Alur Bayesian Optimization: `hpo/ppt_bayesian_flow.png`
+- Bar chart perbandingan: `hpo/ppt_comparison_bar.png`
+- Tabel ringkasan akhir: `hpo/ppt_final_summary.png`
+- Computational cost: `hpo/ppt_computational_cost.png`, `hpo/ppt_computational_cost_bars.png`
 
 ---
 
@@ -282,7 +330,7 @@ Buka **http://localhost:8501** di browser.
 | -------------------------- | --------- | ----------- |
 | Nafhan Hadiyan Shafwatudin | 18123029  | Developer   |
 | *(Isi nama anggota 2)*   | *(NIM)* | *(Peran)* |
-|                            |           |             |
+| *(Isi nama anggota 3)*   | *(NIM)* | *(Peran)* |
 
 ---
 

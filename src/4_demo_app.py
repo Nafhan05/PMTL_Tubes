@@ -126,8 +126,16 @@ def load_model(model_name: str):
     models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
     if model_name == "1D-CNN":
         path = os.path.join(models_dir, "best_1dcnn.keras")
-    else:
+    elif model_name == "1D-CNN (HPO)":
+        path = os.path.join(models_dir, "best_1dcnn_hpo.keras")
+    elif model_name == "LSTM":
         path = os.path.join(models_dir, "best_lstm.keras")
+    elif model_name == "2D-CNN":
+        path = os.path.join(models_dir, "best_2dcnn.keras")
+    elif model_name == "2D-CNN (HPO)":
+        path = os.path.join(models_dir, "best_2dcnn_hpo.keras")
+    else:
+        return None
 
     if not os.path.exists(path):
         return None
@@ -165,8 +173,8 @@ with st.sidebar:
     st.markdown("### Model")
     model_name = st.selectbox(
         "Pilih Model",
-        ["1D-CNN", "LSTM"],
-        help="1D-CNN lebih cepat, LSTM sedikit lebih akurat",
+        ["1D-CNN", "1D-CNN (HPO)", "LSTM", "2D-CNN", "2D-CNN (HPO)"],
+        help="1D-CNN HPO sangat optimal, LSTM akurat, 2D-CNN menggunakan spektrogram",
     )
 
     st.markdown("---")
@@ -292,10 +300,34 @@ if run_btn and ds_size > 0:
         # Run inference
         model = load_model(model_name)
         if model is not None:
+            model_type = "2d" if "2D-CNN" in model_name else "1d"
             seq_len = 1024
-            if model_name == "LSTM" and model.input_shape[1] != 1024:
+            
+            # Khusus LSTM atau 1D-CNN HPO mungkin butuh sequence lebih pendek
+            if model_type == "1d" and len(model.input_shape) >= 2 and model.input_shape[1] is not None and model.input_shape[1] != 1024:
                 seq_len = model.input_shape[1]
-            result = run_inference(model, processed_signal, seq_len=seq_len)
+                
+            nperseg = 64
+            hop_length = 16
+            
+            # Coba load HPO config jika modelnya 2D-CNN HPO
+            if model_name == "2D-CNN (HPO)":
+                hpo_json = os.path.join(os.path.dirname(os.path.dirname(__file__)), "results", "hpo_best_2dcnn.json")
+                if os.path.exists(hpo_json):
+                    import json
+                    with open(hpo_json) as f:
+                        cfg = json.load(f)
+                    nperseg = cfg.get("stft_nperseg", 64)
+                    hop_length = cfg.get("stft_hop_length", 16)
+            
+            result = run_inference(
+                model, 
+                processed_signal, 
+                seq_len=seq_len,
+                model_type=model_type,
+                nperseg=nperseg,
+                hop_length=hop_length
+            )
             st.session_state["result"] = result
             st.session_state["model_name"] = model_name
         else:

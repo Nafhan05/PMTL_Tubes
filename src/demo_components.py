@@ -91,7 +91,7 @@ def apply_intermittent_jamming(signal: np.ndarray, y_label: int, period_samples:
 # --------------------------------------------------------------------------- #
 #                      MODEL INFERENCE                                          #
 # --------------------------------------------------------------------------- #
-def run_inference(model, signal: np.ndarray, seq_len: int = 1024) -> dict:
+def run_inference(model, signal: np.ndarray, seq_len: int = 1024, model_type: str = "1d", nperseg: int = 64, hop_length: int = 16) -> dict:
     """
     Jalankan inference pada satu sinyal.
 
@@ -102,11 +102,28 @@ def run_inference(model, signal: np.ndarray, seq_len: int = 1024) -> dict:
 
     # Prepare input
     x = signal.copy()
-    if seq_len < x.shape[0]:
-        indices = np.linspace(0, x.shape[0] - 1, seq_len, dtype=int)
-        x = x[indices]
+    
+    if model_type == "2d":
+        # Konversi ke spektrogram 2D
+        x_batch = x.reshape(1, x.shape[0], x.shape[1])
+        complex_signals = x_batch[:, :, 0] + 1j * x_batch[:, :, 1]
+        frame_starts = np.arange(0, 1024 - nperseg + 1, hop_length)
+        frame_indices = frame_starts[:, None] + np.arange(nperseg)
+        window = np.hanning(nperseg).astype(np.float32)
+        frames = complex_signals[:, frame_indices] * window[None, None, :]
+        spec = np.fft.fft(frames, axis=2)
+        mag = np.abs(spec).transpose(0, 2, 1)
+        log_mag = np.log10(mag + 1e-10)
+        for i in range(len(log_mag)):
+            vmin, vmax = log_mag[i].min(), log_mag[i].max()
+            log_mag[i] = (log_mag[i] - vmin) / (vmax - vmin + 1e-10)
+        x = log_mag[..., np.newaxis].astype(np.float32)
+    else:
+        if seq_len < x.shape[0]:
+            indices = np.linspace(0, x.shape[0] - 1, seq_len, dtype=int)
+            x = x[indices]
 
-    x = x.reshape(1, seq_len, 2).astype(np.float32)
+        x = x.reshape(1, seq_len, 2).astype(np.float32)
 
     # Warm-up
     model.predict(x, verbose=0)

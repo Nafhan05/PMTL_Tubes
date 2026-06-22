@@ -2,14 +2,14 @@
 data/GOLD_XYZ_OSC.0001_1024.hdf5
 
 # Model weights
-models/*.keras
-models/*.h5
+# models/*.keras  (Removed to allow tracking)
+# models/*.h5
 
 # Results — track all results (small files, needed for PPT/documentation)
 # Only ignore old/duplicate files if needed
 
-# HPO trial logs (large, ~100MB+)
-hpo_results/
+# HPO trial logs (large, ~100MB+, but safe to push since files are <100MB)
+# hpo_results/  (Removed to allow tracking)
 
 # Python
 __pycache__/

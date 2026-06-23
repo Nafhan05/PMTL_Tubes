@@ -329,8 +329,8 @@ Semua visualisasi tersimpan di `results/` dan `results/hpo/`:
 | Nama                       | NIM       | Peran       |
 | -------------------------- | --------- | ----------- |
 | Nafhan Hadiyan Shafwatudin | 18123029  | Developer   |
-| *(Isi nama anggota 2)*   | *(NIM)* | *(Peran)* |
-| *(Isi nama anggota 3)*   | *(NIM)* | *(Peran)* |
+| Kesha Mufrih Ramadhan      | 18123003  | Developer   |
+| Naufal Fakhri Fahdlurrahman| 18123022  | Developer   |
 
 ---
 
